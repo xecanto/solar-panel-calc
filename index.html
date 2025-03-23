@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Solar Panel Layout Planner</title>
+    <title>Solar Panel Array Planner</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     
     <!-- Mapbox Styles & Scripts -->
@@ -16,183 +16,30 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.5.0/mapbox-gl-draw.js"></script>
     <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.5.0/mapbox-gl-draw.css" type="text/css">
     
-    <style>
-        body { margin: 0; padding: 0; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-        
-        /* Box for showing calculated area */
-        .calculation-box {
-            height: 100px;
-            width: 200px;
-            position: absolute;
-            bottom: 40px;
-            left: 10px;
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 15px;
-            text-align: center;
-        }
-
-        /* Control buttons */
-        .controls {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 1000;
-        }
-
-        button {
-            margin: 5px;
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        p {
-            font-family: 'Open Sans';
-            margin: 0;
-            font-size: 13px;
-        }
-    </style>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="m-0 p-0">
 
-<div id="map"></div>
+<div id="map" class="absolute top-0 bottom-0 w-full"></div>
 
 <!-- Area Display Box -->
-<div class="calculation-box">
-    <p>Click the map to draw a polygon.</p>
-    <div id="calculated-area"></div>
+<div class="absolute bottom-10 left-3 bg-white bg-opacity-90 p-4 w-72 rounded-lg shadow-md">
+    <p class="text-gray-700 text-sm mb-2">Click the map to draw a polygon.</p>
+    <div id="calculated-area" class="font-semibold"></div>
+    <div id="panel-count" class="mt-2 text-sm text-gray-600"></div>
 </div>
 
 <!-- Buttons for functionalities -->
-<div class="controls">
-    <button id="subtract-area">Subtract Inner Polygon</button>
-    <button id="autofill">Autofill with Solar Panels</button>
+<div class="absolute top-3 left-3 bg-white p-4 rounded-lg shadow-md z-10">
+    <button id="subtract-area" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded mb-2 w-full">
+        Subtract Inner Polygon
+    </button>
+    <button id="autofill" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded w-full">
+        Autofill with Panel Arrays
+    </button>
 </div>
 
-<script>
-    mapboxgl.accessToken = 'pk.eyJ1IjoiaWxpeWFuLWhpcmFuaSIsImEiOiJjbThmNHRxMDMwYTJ2MmpxdHAzbDZxOTNuIn0.nw9ek8mR679n6H-C-Ydhzg';
-
-    // Initialize Mapbox
-    const map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/satellite-v9',
-        center: [-91.874, 42.76],
-        zoom: 12
-    });
-
-    // Initialize Mapbox Draw
-    const draw = new MapboxDraw({
-        displayControlsDefault: false,
-        controls: {
-            polygon: true,
-            trash: true
-        }
-    });
-    map.addControl(draw);
-
-    // Event listeners for polygon drawing
-    map.on('draw.create', updateArea);
-    map.on('draw.delete', updateArea);
-    map.on('draw.update', updateArea);
-
-    function updateArea(e) {
-        const data = draw.getAll();
-        const answer = document.getElementById('calculated-area');
-        if (data.features.length > 0) {
-            const area = turf.area(data);
-            const rounded_area = Math.round(area * 100) / 100;
-            answer.innerHTML = `<p><strong>${rounded_area}</strong></p><p>square meters</p>`;
-        } else {
-            answer.innerHTML = '';
-            if (e.type !== 'draw.delete')
-                alert('Click the map to draw a polygon.');
-        }
-    }
-
-    // **Subtract Inner Polygon from Outer Polygon**
-    document.getElementById("subtract-area").addEventListener("click", () => {
-        const data = draw.getAll();
-        if (data.features.length < 2) return alert("Draw at least two polygons!");
-
-        let outerPolygon = data.features[0];
-        let innerPolygon = data.features[1];
-
-        let result = turf.difference(outerPolygon, innerPolygon);
-        if (!result) return alert("Subtraction resulted in an empty shape!");
-
-        draw.deleteAll();
-        draw.add(result);
-    });
-
-    // **Autofill Polygon with Solar Panels + Custom Spacing**
-    document.getElementById("autofill").addEventListener("click", () => {
-        const data = draw.getAll();
-        if (data.features.length === 0) return alert("Draw a polygon first!");
-
-        let polygon = data.features[0];
-
-        // Get user input for panel size and spacing
-        let panelWidth = parseFloat(prompt("Enter Solar Panel Width (meters):"));
-        let panelHeight = parseFloat(prompt("Enter Solar Panel Height (meters):"));
-        let spacingX = parseFloat(prompt("Enter Spacing Between Columns (meters):"));
-        let spacingY = parseFloat(prompt("Enter Spacing Between Rows (meters):"));
-
-        if (isNaN(panelWidth) || isNaN(panelHeight) || isNaN(spacingX) || isNaN(spacingY) ||
-            panelWidth <= 0 || panelHeight <= 0 || spacingX < 0 || spacingY < 0) {
-            alert("Invalid input! Please enter positive numbers.");
-            return;
-        }
-
-        let bbox = turf.bbox(polygon);
-        let [minLng, minLat, maxLng, maxLat] = bbox;
-
-        // Convert meters to degrees (approximate conversion at given latitude)
-        const metersToDegrees = (meters, lat) => {
-            const earthRadius = 6378137; // Earth's radius in meters
-            const latFactor = 180 / Math.PI / earthRadius;
-            return meters * latFactor / Math.cos(lat * Math.PI / 180);
-        };
-
-        let panelLng = metersToDegrees(panelWidth + spacingX, minLat);
-        let panelLat = metersToDegrees(panelHeight + spacingY, minLat);
-
-        let panels = [];
-        for (let lng = minLng; lng < maxLng; lng += panelLng) {
-            for (let lat = minLat; lat < maxLat; lat += panelLat) {
-                let panel = turf.polygon([[
-                    [lng, lat],
-                    [lng + metersToDegrees(panelWidth, lat), lat],
-                    [lng + metersToDegrees(panelWidth, lat), lat + metersToDegrees(panelHeight, lat)],
-                    [lng, lat + metersToDegrees(panelHeight, lat)],
-                    [lng, lat]  // Close the polygon
-                ]]);
-
-                if (turf.booleanWithin(panel, polygon)) {
-                    panels.push(panel);
-                }
-            }
-        }
-
-        if (panels.length === 0) {
-            alert("No panels fit within the polygon.");
-            return;
-        }
-
-        draw.deleteAll();
-        draw.add(polygon);
-        panels.forEach(panel => draw.add(panel));
-    });
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
