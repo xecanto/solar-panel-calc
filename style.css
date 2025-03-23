@@ -1,0 +1,4 @@
+/* Most styles are now handled by Tailwind CSS classes in the HTML */
+/* Only keeping essential styles that can't be easily implemented with Tailwind */
+
+/* We can remove this file entirely if all styles are migrated to Tailwind */
