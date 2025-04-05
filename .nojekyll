@@ -1,0 +1,4 @@
+echo > .nojekyll
+git add .nojekyll
+git commit -m "Add .nojekyll to fix Pages issue"
+git push
